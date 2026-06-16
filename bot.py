@@ -1,3 +1,4 @@
+print("TOKEN LOADED:", TOKEN[:10])
 import asyncio
 import logging
 
@@ -23,6 +24,12 @@ async def start(message: types.Message):
         "Команда:\n"
         "/server IP:PORT"
     )
+
+
+@dp.message()
+async def echo(message: types.Message):
+    print("MESSAGE RECEIVED:", message.text)
+    await message.answer("BOT WORKS")
 
 
 @dp.message(Command("server"))
