@@ -1,65 +1,44 @@
-import asyncio
-import os
+import random
+import time
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command, CommandStart
-from dotenv import load_dotenv
+COOLDOWN = 60 * 60 * 24  # 24 часа
 
-from scp_api import get_server_info
+ADMINS = [123456789]  # твой ID
 
-load_dotenv()
+cards_by_rarity = {
+    "🟢 Common": [
+        "Class-D", "Scientist", "Facility Guard",
+        "MTF Cadet", "Chaos Conscript", "Medkit"
+    ],
+    "🔵 Rare": [
+        "MTF Private", "Chaos Rifleman", "SCP-049-2"
+    ],
+    "🟣 Epic": [
+        "SCP-173", "SCP-049", "SCP-939", "E-11 Rifle"
+    ],
+    "🟡 Legendary": [
+        "SCP-096", "SCP-106", "Micro H.I.D.", "O5 Keycard"
+    ],
+    "🔴 Mythic": [
+        "SCP-001", "SCP-682", "SCP-999"
+    ]
+}
 
-TOKEN = os.getenv("BOT_TOKEN")
-
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-
-
-@dp.message(CommandStart())
-async def start_handler(message: types.Message):
-    await message.answer(
-        "👋 SCP:SL Monitor Bot\n\n"
-        "Использование:\n"
-        "/server IP:PORT"
-    )
-
-
-@dp.message(Command("server"))
-async def server_handler(message: types.Message):
-    args = message.text.split()
-
-    if len(args) < 2:
-        await message.answer("Использование:\n/server IP:PORT")
-        return
-
-    ip_port = args[1]
-
-    await message.answer("🔎 Проверяю сервер...")
-
-    info = await get_server_info(ip_port)
-
-    if not info:
-        await message.answer("❌ Сервер не найден")
-        return
-
-    text = (
-        f"🎮 Сервер: {info['name']}\n"
-        f"📡 Статус: {info['status']}\n"
-        f"👥 Онлайн: {info['players']}\n"
-        f"🗺 Карта: {info['map']}\n"
-        f"🌐 Адрес: {info['address']}\n"
-        f"📧 Email владельца: {info['owner_email']}\n"
-        f"⚙ Framework: {info['framework']}\n"
-        f"📈 TPS: {info['tps']}"
-    )
-
-    await message.answer(text)
+rarity_weights = [
+    ("🟢 Common", 60),
+    ("🔵 Rare", 25),
+    ("🟣 Epic", 10),
+    ("🟡 Legendary", 4),
+    ("🔴 Mythic", 1),
+]
 
 
-async def main():
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+def roll_rarity():
+    pool = []
+    for r, w in rarity_weights:
+        pool.extend([r] * w)
+    return random.choice(pool)
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+user_last_open = {}
+user_cards = {}
