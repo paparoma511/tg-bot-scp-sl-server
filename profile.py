@@ -27,7 +27,7 @@ async def profile(message: Message):
     if row is None:
         conn.close()
         await message.answer(
-            "❌ Ты ещё не зарегистрирован.\nИспользуй /start"
+            "❌ Вы ещё не зарегистрированы.\nИспользуйте /start ддя регистрациии"
         )
         return
 
@@ -46,7 +46,7 @@ async def profile(message: Message):
 
     await message.answer(
         f"👤 {message.from_user.full_name}\n\n"
-        f"🃏 Карт: {cards_count}\n"
+        f"🃏 У вас карт: {cards_count}\n"
         f"🎁 Открыто карт: {row[0]}"
     )
 
@@ -78,7 +78,7 @@ async def top(message: Message):
         await message.answer("🏆 Топ пока пуст.")
         return
 
-    text = "🏆 Топ игроков\n\n"
+    text = "🏆 Топ игроковв боте\n\n"
 
     for place, (username, user_id, count) in enumerate(data, start=1):
 
