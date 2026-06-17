@@ -1,44 +1,29 @@
-import random
-import time
+import asyncio
+import logging
+import os
 
-COOLDOWN = 60 * 60 * 24  # 24 часа
+from aiogram import Bot, Dispatcher
+from dotenv import load_dotenv
 
-ADMINS = [123456789]  # твой ID
+load_dotenv()
 
-cards_by_rarity = {
-    "🟢 Common": [
-        "Class-D", "Scientist", "Facility Guard",
-        "MTF Cadet", "Chaos Conscript", "Medkit"
-    ],
-    "🔵 Rare": [
-        "MTF Private", "Chaos Rifleman", "SCP-049-2"
-    ],
-    "🟣 Epic": [
-        "SCP-173", "SCP-049", "SCP-939", "E-11 Rifle"
-    ],
-    "🟡 Legendary": [
-        "SCP-096", "SCP-106", "Micro H.I.D.", "O5 Keycard"
-    ],
-    "🔴 Mythic": [
-        "SCP-001", "SCP-682", "SCP-999"
-    ]
-}
+from config import BOT_TOKEN
 
-rarity_weights = [
-    ("🟢 Common", 60),
-    ("🔵 Rare", 25),
-    ("🟣 Epic", 10),
-    ("🟡 Legendary", 4),
-    ("🔴 Mythic", 1),
-]
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
+# подключаем хендлеры
+import handlers.start
+import handlers.open
+import handlers.cards
 
-def roll_rarity():
-    pool = []
-    for r, w in rarity_weights:
-        pool.extend([r] * w)
-    return random.choice(pool)
+logging.basicConfig(level=logging.INFO)
 
+async def main():
+    print("BOT STARTED")
 
-user_last_open = {}
-user_cards = {}
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
