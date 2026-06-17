@@ -2,6 +2,6 @@ import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-ADMINS = [6290782095]
+ADMINS = 1234567890]
 
 COOLDOWN = 86400
