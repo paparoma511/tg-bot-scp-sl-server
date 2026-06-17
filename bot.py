@@ -221,7 +221,7 @@ async def profile(message: Message):
 
 # TOP
 
-@@router.message(Command("top"))
+@router.message(Command("top"))
 async def top(message: Message):
 
     conn = db()
