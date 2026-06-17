@@ -1,12 +1,14 @@
 import time
-from aiogram import types
+from aiogram import Router, types
 from aiogram.filters import Command
 
 from config import ADMINS, COOLDOWN
 from database.memory import user_cards, user_last_open
 from services.card_system import generate_cards
 
-@dp.message(Command("open"))
+router = Router()
+
+@router.message(Command("open"))
 async def open_cards(message: types.Message):
     user_id = message.from_user.id
     now = time.time()
