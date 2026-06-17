@@ -1,145 +1,324 @@
 import asyncio
-import logging
+import sqlite3
 import time
-import random
-from aiogram import Bot, Dispatcher, types, Router
+
+from aiogram import Bot, Dispatcher, Router
+from aiogram.types import Message
 from aiogram.filters import Command
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+from config import BOT_TOKEN, ADMINS, COOLDOWN
+from database import init_db
+from cards import get_card
 
-# =====================
-# ⚙ НАСТРОЙКИ
-# =====================
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-ADMINS = [123456789]  # <-- твой ID
-COOLDOWN = 60 * 60 * 24
-
-# =====================
-# 🃏 КАРТЫ И РЕДКОСТИ
-# =====================
-CARDS = {
-    "🟢 Common": ["Class-D", "Scientist", "Guard", "Medkit"],
-    "🔵 Rare": ["MTF Private", "Chaos Rifleman", "Keycard L2"],
-    "🟣 Epic": ["SCP-173", "SCP-049", "E-11 Rifle"],
-    "🟡 Legendary": ["SCP-096", "SCP-106", "Micro H.I.D."],
-    "🔴 Mythic": ["SCP-682", "SCP-999", "SCP-001"]
-}
-
-WEIGHTS = {
-    "🟢 Common": 60,
-    "🔵 Rare": 25,
-    "🟣 Epic": 10,
-    "🟡 Legendary": 4,
-    "🔴 Mythic": 1
-}
-
-# =====================
-# 💾 ПАМЯТЬ
-# =====================
-user_cards = {}
-user_last_open = {}
-
-# =====================
-# 🎲 ЛОГИКА
-# =====================
-def roll_rarity():
-    pool = []
-    for r, w in WEIGHTS.items():
-        pool.extend([r] * w)
-    return random.choice(pool)
-
-
-def generate_cards(n=2):
-    result = []
-    for _ in range(n):
-        rarity = roll_rarity()
-        card = random.choice(CARDS[rarity])
-        result.append((rarity, card))
-    return result
-
-# =====================
-# 🤖 BOT
-# =====================
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
 router = Router()
 
-# =====================
-# /start
-# =====================
+bot = Bot(BOT_TOKEN)
+dp = Dispatcher()
+
+init_db()
+
+
+def db():
+    return sqlite3.connect("cards.db")
+
+
+# START
+
 @router.message(Command("start"))
-async def start(message: types.Message):
-    await message.answer(
-        "👋 SCP Card Bot\n\n"
-        "/open - открыть 2 карты\n"
-        "/cards - коллекция"
+async def start(message: Message):
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "INSERT OR IGNORE INTO users(user_id,username) VALUES(?,?)",
+        (
+            message.from_user.id,
+            message.from_user.username
+        )
     )
 
-# =====================
-# /open
-# =====================
+    conn.commit()
+    conn.close()
+
+    await message.answer(
+        "🎴 SCP Card Bot\n\n"
+        "/open\n"
+        "/cards\n"
+        "/profile\n"
+        "/top\n"
+        "/info"
+    )
+
+
+# OPEN
+
 @router.message(Command("open"))
-async def open_cards(message: types.Message):
+async def open_cards(message: Message):
+
+    conn = db()
+    cur = conn.cursor()
+
     user_id = message.from_user.id
-    now = time.time()
 
-    is_admin = user_id in ADMINS
+    cur.execute(
+        "SELECT last_open FROM users WHERE user_id=?",
+        (user_id,)
+    )
 
-    if not is_admin:
-        last = user_last_open.get(user_id, 0)
-        if now - last < COOLDOWN:
-            remain = COOLDOWN - (now - last)
-            h = int(remain // 3600)
-            m = int((remain % 3600) // 60)
-            await message.answer(f"⏳ КД: {h}ч {m}м")
+    row = cur.fetchone()
+
+    now = int(time.time())
+
+    if row:
+
+        last_open = row[0]
+
+        if (
+            user_id not in ADMINS
+            and
+            now - last_open < COOLDOWN
+        ):
+            left = COOLDOWN - (now - last_open)
+
+            hours = left // 3600
+
+            await message.answer(
+                f"⏳ Жди ещё {hours} часов"
+            )
+
+            conn.close()
             return
 
-    cards = generate_cards(2)
+    cards = []
 
-    user_cards.setdefault(user_id, [])
+    for _ in range(2):
 
-    text = "🎁 Ты получил:\n\n"
+        rarity, card = get_card()
 
-    for rarity, card in cards:
-        user_cards[user_id].append(f"{rarity} {card}")
-        text += f"{rarity} → {card}\n"
+        cards.append(f"{rarity} | {card}")
 
-    user_last_open[user_id] = now
+        cur.execute(
+            """
+            INSERT INTO cards(
+                user_id,
+                rarity,
+                card_name
+            )
+            VALUES(?,?,?)
+            """,
+            (
+                user_id,
+                rarity,
+                card
+            )
+        )
 
-    await message.answer(text)
+    cur.execute(
+        """
+        UPDATE users
+        SET last_open=?,
+            cards_opened=cards_opened+2
+        WHERE user_id=?
+        """,
+        (
+            now,
+            user_id
+        )
+    )
 
-# =====================
-# /cards
-# =====================
+    conn.commit()
+    conn.close()
+
+    await message.answer(
+        "🎁 Выпало:\n\n"
+        + "\n".join(cards)
+    )
+
+
+# CARDS
+
 @router.message(Command("cards"))
-async def cards(message: types.Message):
-    user_id = message.from_user.id
-    cards = user_cards.get(user_id, [])
+async def cards(message: Message):
+
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT rarity,card_name
+        FROM cards
+        WHERE user_id=?
+        """,
+        (
+            message.from_user.id,
+        )
+    )
+
+    cards = cur.fetchall()
+
+    conn.close()
 
     if not cards:
-        await message.answer("🃏 У тебя нет карт")
+        await message.answer("У тебя нет карт")
         return
 
-    text = "🃏 ТВОЯ КОЛЛЕКЦИЯ:\n\n"
-    for c in cards:
-        text += f"• {c}\n"
+    text = "🃏 Коллекция:\n\n"
+
+    for rarity, card in cards:
+        text += f"{rarity} • {card}\n"
 
     await message.answer(text)
 
-# =====================
-# MAIN
-# =====================
+
+# PROFILE
+
+@router.message(Command("profile"))
+async def profile(message: Message):
+
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT cards_opened
+        FROM users
+        WHERE user_id=?
+        """,
+        (
+            message.from_user.id,
+        )
+    )
+
+    row = cur.fetchone()
+
+    cur.execute(
+        """
+        SELECT COUNT(*)
+        FROM cards
+        WHERE user_id=?
+        """,
+        (
+            message.from_user.id,
+        )
+    )
+
+    cards_count = cur.fetchone()[0]
+
+    conn.close()
+
+    await message.answer(
+        f"👤 {message.from_user.full_name}\n\n"
+        f"🃏 Карт: {cards_count}\n"
+        f"🎁 Открыто карт: {row[0]}"
+    )
+
+
+# TOP
+
+@@router.message(Command("top"))
+async def top(message: Message):
+
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT
+        users.username,
+        users.user_id,
+        COUNT(cards.id) as cards_count
+    FROM users
+    LEFT JOIN cards
+        ON users.user_id = cards.user_id
+    GROUP BY users.user_id
+    ORDER BY cards_count DESC
+    LIMIT 10
+    """)
+
+    data = cur.fetchall()
+
+    conn.close()
+
+    if not data:
+        await message.answer("🏆 Топ пока пуст.")
+        return
+
+    text = "🏆 Топ игроков\n\n"
+
+    for place, (username, user_id, count) in enumerate(data, start=1):
+
+        if username:
+            name = f"@{username}"
+        else:
+            name = f"ID {user_id}"
+
+        text += f"{place}. {name} — {count} карт\n"
+
+    await message.answer(text)
+
+
+# INFO
+
+@router.message(Command("info"))
+async def info(message: Message):
+
+    await message.answer(
+        "🎮 Сервер: IMPERIAL || NORULES\n"
+        "🌐 IP: 31.25.244.233:7777\n"
+        "📦 Версия: 14.2.7\n"
+        "💬 Discord: https://discord.gg/vT3WPjGBA2\n"
+        "🟢 Статус: Онлайн"
+    )
+
+
+# ADMIN GIVECARD
+
+@router.message(Command("givecard"))
+async def givecard(message: Message):
+
+    if message.from_user.id not in ADMINS:
+        return
+
+    args = message.text.split(maxsplit=2)
+
+    if len(args) < 3:
+        await message.answer(
+            "/givecard user_id карта"
+        )
+        return
+
+    target = int(args[1])
+    card = args[2]
+
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        INSERT INTO cards(
+        user_id,
+        rarity,
+        card_name
+        )
+        VALUES(?,?,?)
+        """,
+        (
+            target,
+            "Admin",
+            card
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    await message.answer("✅ Карта выдана")
+
+
+dp.include_router(router)
+
 async def main():
-    logging.basicConfig(level=logging.INFO)
-
-    dp.include_router(router)
-
-    print("BOT STARTED")
-
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+   
