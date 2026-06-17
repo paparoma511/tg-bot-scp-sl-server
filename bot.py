@@ -17,6 +17,9 @@ router = Router()
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
+dp.include_router(cards_router)
+dp.include_router(profile_router)
+dp.include_router(admin_router)
 
 init_db()
 
