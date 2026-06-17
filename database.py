@@ -7,6 +7,10 @@ def db():
     return sqlite3.connect(DB_NAME)
 
 
+def init_db():
+    conn = db()
+    cur = conn.cursor()
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users(
         user_id INTEGER PRIMARY KEY,
