@@ -2,48 +2,39 @@ import asyncio
 import logging
 import os
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import CommandStart
-from dotenv import load_dotenv
+from aiogram import types
+from aiogram.filters import Command
+from scp_api import get_server_info
 
-load_dotenv()
+@dp.message(Command("server"))
+async def server_handler(message: types.Message):
+    args = message.text.split()
 
-TOKEN = os.getenv("BOT_TOKEN")
-
-logging.basicConfig(level=logging.INFO)
-
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-
-
-@dp.message(CommandStart())
-async def start_handler(message: types.Message):
-    print("START COMMAND RECEIVED")
-    await message.answer("Бот работает ✅")
-
-
-@dp.message()
-async def echo_handler(message: types.Message):
-    print("MESSAGE:", message.text)
-    await message.answer(f"Вы написали:\n{message.text}")
-
-
-async def main():
-    print("BOT FILE STARTED")
-
-    if not TOKEN:
-        print("ОШИБКА: BOT_TOKEN не найден")
+    if len(args) < 2:
+        await message.answer(
+            "Использование:\n/server IP:PORT"
+        )
         return
 
-    await bot.delete_webhook(drop_pending_updates=True)
+    ip_port = args[1]
 
-    print("START POLLING")
+    await message.answer("🔎 Проверяю сервер...")
 
-    await dp.start_polling(
-        bot,
-        allowed_updates=["message"]
+    info = await get_server_info(ip_port)
+
+    if not info:
+        await message.answer("❌ Сервер не найден")
+        return
+
+    text = (
+        f"🎮 Сервер: {info['name']}\n"
+        f"📡 Статус: {info['status']}\n"
+        f"👥 Онлайн: {info['players']}\n"
+        f"🗺 Карта: {info['map']}\n"
+        f"🌐 Адрес: {info['address']}\n"
+        f"📧 Email владельца: {info['owner_email']}\n"
+        f"⚙ Framework: {info['framework']}\n"
+        f"📈 TPS: {info['tps']}"
     )
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    await message.answer(text)
