@@ -13,13 +13,18 @@ async def profile(message: Message):
     conn = db()
     cur = conn.cursor()
 
-    cur.execute(
-        """
-        SELECT cards_opened
-        FROM users
-        WHERE user_id=?
-        """,
-        (
+    cur.execute("""
+SELECT
+    users.username,
+    users.user_id,
+    COUNT(cards.id) AS cards_count
+FROM users
+LEFT JOIN cards
+    ON users.user_id = cards.user_id
+GROUP BY users.user_id, users.username
+ORDER BY cards_count DESC
+LIMIT 10
+""")
             message.from_user.id,
         )
     )
