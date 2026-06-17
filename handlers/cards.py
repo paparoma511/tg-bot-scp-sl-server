@@ -1,8 +1,11 @@
-from aiogram import types
+from aiogram import Router, types
 from aiogram.filters import Command
+
 from database.memory import user_cards
 
-@dp.message(Command("cards"))
+router = Router()
+
+@router.message(Command("cards"))
 async def cards(message: types.Message):
     user_id = message.from_user.id
     cards = user_cards.get(user_id, [])
