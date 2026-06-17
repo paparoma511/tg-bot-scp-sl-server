@@ -9,6 +9,9 @@ from aiogram.filters import Command
 from config import BOT_TOKEN, ADMINS, COOLDOWN
 from database import init_db
 from cards import get_card
+from admin import router as admin_router
+from profile import router as profile_router
+from cards import router as cards_router
 
 router = Router()
 
