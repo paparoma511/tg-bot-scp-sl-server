@@ -47,7 +47,7 @@ async def start(message: Message):
     conn.close()
 
     await message.answer(
-        "🎴 SCP Card Bot\n\n"
+        "🎴 SCP:SL Карты, доступные вам команды:\n\n"
         "/open\n"
         "/cards\n"
         "/profile\n"
