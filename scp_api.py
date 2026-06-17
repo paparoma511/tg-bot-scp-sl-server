@@ -1,21 +1,30 @@
-
 import aiohttp
 
-API = "https://api.gamemonitoring.net/servers"
+API_URL = "https://api.gamemonitoring.net/servers"
 
 
 async def get_server_info(ip_port: str):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(API) as r:
-            data = await r.json()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(API_URL, timeout=15) as response:
+                data = await response.json()
 
-            for s in data.get("response", []):
-                if ip_port in (s.get("connect") or ""):
-                    return {
-                        "name": s.get("name", "Unknown"),
-                        "status": "🟢 Online" if s.get("status") else "🔴 Offline",
-                        "players": f"{s.get('numplayers',0)}/{s.get('maxplayers',0)}",
-                        "map": s.get("map", "Unknown"),
-                    }
+                for server in data.get("response", []):
+                    connect = server.get("connect", "")
+
+                    if ip_port in connect:
+                        return {
+                            "name": server.get("name", "Неизвестно"),
+                            "status": "🟢 Онлайн" if server.get("status") else "🔴 Оффлайн",
+                            "players": f"{server.get('numplayers', 0)}/{server.get('maxplayers', 0)}",
+                            "map": server.get("map", "Неизвестно"),
+                            "address": connect,
+                            "owner_email": "Недоступно",
+                            "framework": "Недоступно",
+                            "tps": "Недоступно"
+                        }
+
+    except Exception as e:
+        print("API ERROR:", e)
 
     return None
