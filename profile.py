@@ -13,23 +13,23 @@ async def profile(message: Message):
     conn = db()
     cur = conn.cursor()
 
-    cur.execute("""
-SELECT
-    users.username,
-    users.user_id,
-    COUNT(cards.id) AS cards_count
-FROM users
-LEFT JOIN cards
-    ON users.user_id = cards.user_id
-GROUP BY users.user_id, users.username
-ORDER BY cards_count DESC
-LIMIT 10
-""")
-            message.from_user.id,
-        )
+    cur.execute(
+        """
+        SELECT cards_opened
+        FROM users
+        WHERE user_id=?
+        """,
+        (message.from_user.id,)
     )
 
     row = cur.fetchone()
+
+    if row is None:
+        conn.close()
+        await message.answer(
+            "❌ Ты ещё не зарегистрирован.\nИспользуй /start"
+        )
+        return
 
     cur.execute(
         """
@@ -37,9 +37,7 @@ LIMIT 10
         FROM cards
         WHERE user_id=?
         """,
-        (
-            message.from_user.id,
-        )
+        (message.from_user.id,)
     )
 
     cards_count = cur.fetchone()[0]
@@ -61,14 +59,14 @@ async def top(message: Message):
 
     cur.execute("""
     SELECT
-        username,
-        user_id,
-        COUNT(cards.id)
+        users.username,
+        users.user_id,
+        COUNT(cards.id) AS cards_count
     FROM users
     LEFT JOIN cards
         ON users.user_id = cards.user_id
-    GROUP BY users.user_id
-    ORDER BY COUNT(cards.id) DESC
+    GROUP BY users.user_id, users.username
+    ORDER BY cards_count DESC
     LIMIT 10
     """)
 
@@ -76,14 +74,15 @@ async def top(message: Message):
 
     conn.close()
 
+    if not data:
+        await message.answer("🏆 Топ пока пуст.")
+        return
+
     text = "🏆 Топ игроков\n\n"
 
     for place, (username, user_id, count) in enumerate(data, start=1):
 
-        if username:
-            name = f"@{username}"
-        else:
-            name = f"ID {user_id}"
+        name = f"@{username}" if username else f"ID {user_id}"
 
         text += f"{place}. {name} — {count} карт\n"
 
