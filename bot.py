@@ -45,12 +45,12 @@ async def start(message: Message):
     conn.close()
 
     await message.answer(
-        "🎴 SCP:SL Карты, доступные вам команды:\n\n"
-        "/open\n"
-        "/cards\n"
-        "/profile\n"
-        "/top\n"
-        "/info"
+        "🎴 SCP:Secret Laboratory карты, доступные вам команды:\n\n"
+        "/open - получить 2 карты\n"
+        "/cards - ваши карты\n"
+        "/profile - ваш профиль\n"
+        "/top - топ игроков бота\n"
+        "/info - информация"
     )
 
 
@@ -87,7 +87,7 @@ async def open_cards(message: Message):
             hours = left // 3600
 
             await message.answer(
-                f"⏳ Жди ещё {hours} часов"
+                f"⏳ Ждите ещё {hours} часа(ов) перед получением еще 2 карт"
             )
 
             conn.close()
@@ -134,7 +134,7 @@ async def open_cards(message: Message):
     conn.close()
 
     await message.answer(
-        "🎁 Выпало:\n\n"
+        "🎁 Вам выпали следуещие карты:\n\n"
         + "\n".join(cards)
     )
 
@@ -163,10 +163,10 @@ async def cards(message: Message):
     conn.close()
 
     if not cards:
-        await message.answer("У тебя нет карт")
+        await message.answer("У вас еще нет карт")
         return
 
-    text = "🃏 Коллекция:\n\n"
+    text = "🃏 Ваша коллекция карт:\n\n"
 
     for rarity, card in cards:
         text += f"{rarity} • {card}\n"
@@ -229,7 +229,7 @@ async def givecard(message: Message):
     conn.commit()
     conn.close()
 
-    await message.answer("✅ Карта выдана")
+    await message.answer("[ADMIN SYSTEM] ✅ Карта выдана")
 
 
 dp.include_router(router)
