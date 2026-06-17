@@ -3,9 +3,9 @@ import sqlite3
 DB_NAME = "cards.db"
 
 
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
+def db():
+    return sqlite3.connect(DB_NAME)
+
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users(
